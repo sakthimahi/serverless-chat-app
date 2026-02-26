@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1e1e21;
+    --border: #2a2a2e;
+    --accent: #e8ff5a;
+    --accent2: #5affd4;
+    --text: #f0efe8;
+    --muted: #6b6b72;
+    --sent-bg: #1c2a10;
+    --recv-bg: #1a1a1e;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(232,255,90,0.04) 0%, transparent 70%);
+    top: -200px; left: -200px;
+    pointer-events: none;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(90,255,212,0.04) 0%, transparent 70%);
+    bottom: -150px; right: -150px;
+    pointer-events: none;
+  }
+
+  .app {
+    width: min(480px, 100vw);
+    height: min(720px, 100dvh);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Connect Screen ── */
+  .connect-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    gap: 32px;
+    animation: fadeIn .4s ease;
+  }
+
+  .connect-screen.hidden { display: none; }
+
+  .brand {
+    text-align: center;
+  }
+
+  .brand h1 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 2.8rem;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  .brand p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .fields {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .field-wrap {
+    position: relative;
+  }
+
+  .field-wrap label {
+    position: absolute;
+    top: 12px; left: 14px;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    pointer-events: none;
+    transition: all .2s;
+  }
+
+  .field-wrap input:focus ~ label,
+  .field-wrap input:not(:placeholder-shown) ~ label {
+    top: 5px;
+    font-size: 0.55rem;
+    color: var(--accent);
+  }
+
+  input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    padding: 22px 14px 8px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  input::placeholder { color: transparent; }
+
+  input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn-connect {
+    width: 100%;
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 14px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+
+  .btn-connect:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-connect:active { transform: translateY(0); }
+
+  /* ── Chat Screen ── */
+  .chat-screen {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-screen.visible {
+    display: flex;
+    animation: fadeIn .3s ease;
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .room-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .room-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .room-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent2);
+    box-shadow: 0 0 6px var(--accent2);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+  }
+
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg {
+    max-width: 78%;
+    animation: msgIn .2s ease;
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.self { align-self: flex-end; }
+  .msg.other { align-self: flex-start; }
+
+  .msg-sender {
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    padding: 0 4px;
+  }
+
+  .msg.self .msg-sender { color: var(--accent); text-align: right; }
+  .msg.other .msg-sender { color: var(--accent2); }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  .msg.self .msg-bubble {
+    background: var(--sent-bg);
+    border: 1px solid rgba(232,255,90,0.15);
+    border-bottom-right-radius: 4px;
+  }
+
+  .msg.other .msg-bubble {
+    background: var(--recv-bg);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg-time {
+    font-size: 0.55rem;
+    color: var(--muted);
+    margin-top: 4px;
+    padding: 0 4px;
+  }
+
+  .msg.self .msg-time { text-align: right; }
+
+  /* ── Input Bar ── */
+  .input-bar {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .input-bar input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+  }
+
+  .input-bar input::placeholder {
+    color: var(--muted);
+  }
+
+  .btn-send {
+    background: var(--accent);
+    color: #0e0e0f;
+    border: none;
+    border-radius: 10px;
+    width: 42px; height: 42px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: opacity .15s, transform .1s;
+  }
+
+  .btn-send:hover { opacity: 0.88; transform: scale(1.05); }
+  .btn-send:active { transform: scale(0.97); }
+
+  .btn-send svg { width: 16px; height: 16px; }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .empty-state svg { opacity: 0.3; width: 32px; height: 32px; margin-bottom: 4px; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Connect Screen -->
+  <div class="connect-screen" id="connectScreen">
+    <div class="brand">
+      <h1>rooms</h1>
+      <p>real-time messaging</p>
+    </div>
+    <div class="fields">
+      <div class="field-wrap">
+        <input type="text" id="username" placeholder="username" autocomplete="off"/>
+        <label>Username</label>
+      </div>
+      <div class="field-wrap">
+        <input type="text" id="room" placeholder="room" autocomplete="off"/>
+        <label>Room</label>
+      </div>
+    </div>
+    <button class="btn-connect" onclick="connect()">Enter Room</button>
+  </div>
+
+  <!-- Chat Screen -->
+  <div class="chat-screen" id="chatScreen">
+    <div class="chat-header">
+      <div class="room-info">
+        <div class="room-name" id="headerRoom">—</div>
+        <div class="room-sub">connected as <span id="headerUser">—</span></div>
+      </div>
+      <div class="status-dot" title="connected"></div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+        </svg>
+        No messages yet
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <input type="text" id="msg" placeholder="Type a message…" autocomplete="off" onkeydown="if(event.key==='Enter') send()"/>
+      <button class="btn-send" onclick="send()">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let socket;
+  let currentUser = '';
+
+  function connect() {
+    const username = document.getElementById('username').value.trim();
+    const room = document.getElementById('room').value.trim();
+    if (!username || !room) return;
+
+    currentUser = username;
+
+    socket = new WebSocket(
+      'wss://u9doow3of3.execute-api.us-east-1.amazonaws.com/prod?username=' + encodeURIComponent(username) + '&roomId=' + encodeURIComponent(room)
+    );
+
+    socket.onopen = function () {
+      document.getElementById('connectScreen').classList.add('hidden');
+      document.getElementById('chatScreen').classList.add('visible');
+      document.getElementById('headerRoom').textContent = '#' + room;
+      document.getElementById('headerUser').textContent = username;
+      document.getElementById('msg').focus();
+    };
+
+    socket.onmessage = function (event) {
+      const data = JSON.parse(event.data);
+      addMessage(data.sender, data.message, data.sender === currentUser);
+    };
+
+    socket.onerror = function () {
+      alert('Connection failed. Check the server URL.');
+    };
+  }
+
+  function addMessage(sender, message, isSelf) {
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.remove();
+
+    const container = document.getElementById('messages');
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const div = document.createElement('div');
+    div.className = 'msg ' + (isSelf ? 'self' : 'other');
+    div.innerHTML = `
+      <div class="msg-sender">${escapeHtml(sender)}</div>
+      <div class="msg-bubble">${escapeHtml(message)}</div>
+      <div class="msg-time">${time}</div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function send() {
+    const msgInput = document.getElementById('msg');
+    const message = msgInput.value.trim();
+    if (!message || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+    socket.send(JSON.stringify({
+      action: 'sendMessage',
+      message: message,
+      sender: currentUser,
+      roomId: document.getElementById('room').value
+    }));
+
+    msgInput.value = '';
+    msgInput.focus();
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
