@@ -78,7 +78,7 @@ DynamoDB
 
 ## 📸 Architecture Diagram
 
-(Add architecture screenshot here)
+(![Architecture](architecture.png))
 
 ---
 
